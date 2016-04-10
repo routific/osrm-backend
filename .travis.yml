@@ -15,10 +15,25 @@ branches:
     - master
     - develop
 
+env:
+  global:
+   - secure: "d40Z5izK1h2wA+4pyndT3GDovyeSjbewkWl//vr0kMv4vdXCirFTGaudwSc8iCxqSW7kS+hMDsSXfRCoI6vLR/YEntbzOac5mr2ZFosOA0KEYgfoL/hgY9ctj4uHWBnV8mzYEMCrnwqWA8RBMoW3Z9iE3bAol+LKhWn9iTYfNqs="
+
 matrix:
   fast_finish: true
 
   include:
+
+    # Release / Triggered build
+    # This is listed first so it runs first to enable
+    # quickly knowing if downstream apps are broken
+    - os: linux
+      compiler: gcc
+      addons: &gcc5
+        apt:
+          sources: ['ubuntu-toolchain-r-test']
+          packages: ['g++-5', 'libbz2-dev', 'libstxxl-dev', 'libstxxl1', 'libxml2-dev', 'libzip-dev', 'lua5.1', 'liblua5.1-0-dev', 'libtbb-dev', 'libgdal-dev', 'libluabind-dev', 'libboost-all-dev']
+      env: CCOMPILER='gcc-5' CXXCOMPILER='g++-5' BUILD_TYPE='Release' TRIGGER=true
 
     # Debug Builds
     - os: linux
@@ -51,14 +66,6 @@ matrix:
       env: CCOMPILER='clang' CXXCOMPILER='clang++' BUILD_TYPE='Debug'
 
     # Release Builds
-    - os: linux
-      compiler: gcc
-      addons: &gcc5
-        apt:
-          sources: ['ubuntu-toolchain-r-test']
-          packages: ['g++-5', 'libbz2-dev', 'libstxxl-dev', 'libstxxl1', 'libxml2-dev', 'libzip-dev', 'lua5.1', 'liblua5.1-0-dev', 'libtbb-dev', 'libgdal-dev', 'libluabind-dev', 'libboost-all-dev']
-      env: CCOMPILER='gcc-5' CXXCOMPILER='g++-5' BUILD_TYPE='Release'
-
     - os: linux
       compiler: gcc
       addons: &gcc48
@@ -163,4 +170,7 @@ after_success:
     if [ -n "$RUN_CLANG_FORMAT" ]; then
       ./scripts/format.sh || true # we don't want to fail just yet
     fi
+
+after_success:
+  - if [[ ${TRIGGER:-false} == true ]]; then ./scripts/trigger-downstream.sh; fi
   - coveralls --exclude unit_tests --exclude thrid_party --gcov-options '\-lp'
